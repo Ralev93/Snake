@@ -2,7 +2,7 @@
 
 var
 	canvas = document.getElementById("snakeCanvas"),
- 	ctx    = canvas.getContext("2d"),
+	ctx    = canvas.getContext("2d"),
  	canvasWidth  = $("#snakeCanvas").width(),
  	canvasHeight = $("#snakeCanvas").height(),
 
