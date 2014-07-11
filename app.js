@@ -1,23 +1,32 @@
 "use strict"
 
 var
-	canvas = document.getElementById("hackCanvas"),
+	canvas = document.getElementById("snakeCanvas"),
  	ctx    = canvas.getContext("2d"),
- 	canvasWidth  = $("#hackCanvas").width(),
- 	canvasHeight = $("#hackCanvas").height(),
+ 	canvasWidth  = $("#snakeCanvas").width(),
+ 	canvasHeight = $("#snakeCanvas").height(),
 
- 	canvasText = document.getElementById("textCanvas"),
+ 	canvasText = document.getElementById("scoreCanvas"),
  	ctx_txt = canvasText.getContext("2d");
-
  	ctx_txt.font = "60px Arial";
  	ctx_txt.fillStyle = "red";
 
 
-function getRandomInt(min, max) {
+var getRandomInt = function (min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+};
 
-function Point(x,y, ctx) {
+var myIndexOf = function (arr, obj) {
+	var hateJS = false;
+  arr.forEach(function (item) {
+		if (obj.equals(item)) { // O(??)
+			hateJS = true;
+		}
+	});
+	return hateJS;
+};
+
+function Point(x,y,ctx) {
 	this.x = x;
 	this.y = y;
 	this.ctx = ctx;
@@ -27,37 +36,25 @@ Point.prototype.print = function() {
 	this.ctx.fillStyle = "red";
 	ctx.fillRect(this.x*10, this.y*10, 10,10);
 };
-
-Point.prototype.move = function(direction) {
-	if (direction === "right") {
-		this.x += 1;
-	}
-	else if (direction === "left") {
-		this.x -= 1;
-	}
-}
+Point.prototype.equals = function(other) {
+	return (this.x === other.x) && (this.y === other.y);
+};
 
 var Snake = (function(ctx) {
 	var body = [],
-			head, top, direction="",ate;
+			head, direction, ate;
 
 	[1,2,3].forEach(function(i) {
 		body.push(new Point(i,10,ctx));
 	});
 
 	head = body[body.length - 1];
-	top = body[0];
 
 	var print = function() {
 		body.forEach(function(p) {
 			p.print();
 		});
 	}
-
-	var grow = function(Point) {
-		body.push(Point);
-		this.print();
-	};
 
 	var move = function (food) {
 		var new_head;
@@ -76,41 +73,57 @@ var Snake = (function(ctx) {
 				break;
 			default: return;
 		};
-		if (new_head.x >= canvasWidth/10) {
-			new_head = new Point(0,head.y,ctx);
-		}
-		else if (new_head.x <= 0) {
-			new_head = new Point(canvasWidth/10, head.y, ctx);
-		}
 
-		body.push(new_head);
+		if (validMove(new_head)) {
+			body.push(new_head);
+		}
+		else {return gameOver();}
 
-		ctx_txt.clearRect(0,0,canvasWidth, canvasHeight);
-		ate = (new_head.x === food.x && new_head.y === food.y);
+		ate = food.equals(new_head);
 
 		if(!ate) {
 			body.shift();
 		}
 		head = new_head;
-		top = body[0];
-
-		ctx_txt.fillText(body.length, 240, 170);
 	};
+
+	var validMove = function(new_head) {
+		return !((new_head.x >= canvasWidth/10) || (new_head.x < 0) || (new_head.y >= canvasHeight/10) || (new_head.y < 0)
+						|| (myIndexOf(body, new_head))); // O(n) -> can go O(1) if the body is a dictionary!..but too much refactoring
+	}
 	var setDirection = function(d) {
 		direction = d;
 	};
 
-	var hungry = function() {
-		return !ate;
+	var hasAte = function() {
+		return ate;
 	}
 
+	var showScore = function() {
+		ctx_txt.fillText("Score: " + (body.length - 3), 240, 170);
+	}
+	var gameOver = function() {
+		ctx.font = "60px Arial";
+ 		ctx.fillStyle = "red";
+ 		ctx.textAlign = "center";
+
+		ctx.fillText("GAME OVER!!!", canvasWidth/2, canvasHeight/2);
+	}
+
+	var setLvl = function() {
+			return Math.floor((body.length - 3) / 15) + 1;
+			//през 15, the speed is raising
+	}
 
 	return {
 		print: print,
-		grow: grow,
 		move: move,
+		validMove: validMove,
 		setDirection: setDirection,
-		hungry: hungry
+		hasAte: hasAte,
+		showScore: showScore,
+		gameOver: gameOver,
+		setLvl: setLvl
 	}
 }(ctx));
 
@@ -126,7 +139,14 @@ $(document).ready(function() {
 		 "38": "up",
 		 "39": "right",
 		 "40": "down"
-	};
+	},
+		levelsTable = {
+			"1": "100",
+			"2" : "75",
+			"3" : "50",
+			"4" : "25"
+
+		};
 
 	$(document).keydown(function(e) {
      Snake.setDirection(initKeyBrdTable[e.keyCode]);
@@ -136,14 +156,17 @@ $(document).ready(function() {
 
 	setInterval(function() {
 		ctx.clearRect(0,0,canvasWidth, canvasHeight);
+		ctx_txt.clearRect(0,0,canvasWidth, canvasHeight);
+
+		Snake.showScore();
 		Snake.move(food);
 		Snake.print();
-		if (!Snake.hungry()) {
-		food = new Point(getRandomInt(0,canvasHeight/10 - 2 ),
-										 getRandomInt(0,canvasHeight/10 - 2),
-										 ctx); }
+		if (Snake.hasAte()) {
+		food = new Point(getRandomInt(0,canvasHeight/10 - 2),
+                     getRandomInt(0,canvasHeight/10 - 2),
+                     ctx); }
 		food.print();
-	},100);
-
+		Snake.setLvl();
+	},levelsTable[Snake.setLvl()]);
 });
 
